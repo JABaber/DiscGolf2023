@@ -1,0 +1,261 @@
+---
+title: "FantasyCalculator"
+author: "Josh Baber"
+date: "2023-01-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+**CHOOSE TOURNAMENT AND PLAYERS**
+
+```{r}
+# Read in Tournament
+rawTourney <- read_csv("Tournaments2023/ZTO2023.csv")
+```
+
+```{r}
+# Grab the Position, Name, FairwaysHit, C1X Putting, C2 Putting, and TeeToGreen Columns, MAKE SURE THESE ARE RIGHT
+# DON'T TRUST THE RAW COLUMNS NAMES MAKE SURE THE VALUES LINE UP WITH UDISC FOR EACH COLUMN
+rawTourney <- rawTourney[-c(1, nrow(rawTourney)), c(1, 2, 8, 13, 14, 15)]
+```
+
+```{r}
+# Vectors of players chosen
+baberPlayers <- c("Nikko Locastro")
+jaebPlayers <- c("Anthony Barela", "Garrett Gurthie")
+benPlayers <- c("Ezra Robinson", "Ben Callaway")
+booziePlayers <- c("Gannon Buhr", "Kevin Jones")
+jackPlayers <- c("Evan Scott", "Gavin Babcock")
+ericPlayers <- c("James Conrad", "Dallin Blanchard")
+jessePlayers <- c("Gavin Rathbun", "Kevin Kiefer")
+jonPlayers <- c("Andrew Marwede", "Adam Hammes")
+```
+
+**DATA CLEANING**
+
+```{r}
+# Change column names
+colnames(rawTourney) <- c("Place", "Name", "FairwaysHit", "Circle1XPutting", "Circle2Putting", "TeeToGreen")
+```
+
+```{r}
+# Replace all DNFs with 0s
+rawTourney$Place <- replace(rawTourney$Place, rawTourney$Place ==  "DNF", "51")
+# Get rid of all ties and change Place to numeric
+rawTourney$Place <- as.numeric(sub("T", "", rawTourney$Place))
+```
+
+```{r}
+# Remove percent signs from putting columns and change to numeric
+rawTourney[,c(3:5)] <- data.frame(sapply(rawTourney[,c(3:5)], function(x){as.numeric(gsub("%", "", x))}))
+# Make Tee to Green numeric
+rawTourney$TeeToGreen <- as.numeric(rawTourney$TeeToGreen)
+# Change NA values to 0
+rawTourney <- replace_na(rawTourney, list(FairwaysHit = 0, Circle1XPutting = 0, Circle2Putting = 0, TeeToGreen = 0))
+```
+
+
+
+
+
+**FUNCTIONS**
+
+## Placement Points
+
+```{r}
+# Create function that makes columns of points based on placement
+placePoints <- function(Place){
+  # Create data frame of placements and their point values
+  col1 <- c(1:50)
+  col2 <- c(100, 85, 75, 69, 64, 60, 57, 54, 52, 50, 48,
+          46, 44, 42, 40, 38, 36, 34, 32, 30:2, 2, 2)
+  pointValues <- tibble(col1, col2)
+  # Grab points based on placement
+  points <- pointValues[Place, 2]
+  points <- replace(points, is.na(points), 0)
+  return(points)
+}
+```
+
+## C1 Putting
+
+```{r}
+# Create function that makes columns of points based on c1 putting
+c1Points <- function(c1){
+  points <- ifelse(c1 < 85, 0,
+                   ifelse(c1 < 90, 10,
+                          ifelse(c1 < 95, 15, 20
+                                 )
+                          )
+                   )
+  return(points)
+}
+```
+
+## C2 Putting
+
+```{r}
+# Create function that makes columns of points based on c2 putting
+c2Points <- function(c2){
+  points <- ifelse(c2 < 30, 0,
+                   ifelse(c2 < 35, 12,
+                          ifelse(c2 < 40, 18,
+                                 ifelse(c2 < 45, 24, 30
+                                        )
+                                 )
+                          )
+                   )
+  return(points)
+}
+```
+
+## Fairway Hit Percentage
+
+```{r}
+# Create function for fairway hit percentage
+FairwayHit <- function(fairway){
+  points <- ifelse(fairway < 70, 0,
+                   ifelse(fairway < 80, 10,
+                          ifelse(fairway < 90, 15, 20
+                                 )
+                          )
+                   )
+  return(points)
+}
+```
+
+# Strokes Gained Tee to Green
+
+```{r}
+#Create function for Tee To Green Points
+TeeToGreen <- function(ttg){
+  points <- ifelse(ttg < 5, 0,
+                   ifelse(ttg < 10, 5,
+                          ifelse(ttg < 15, 10,
+                                 ifelse(ttg < 20, 15,
+                                        ifelse(ttg < 25, 20, 25
+                                               )
+                                        )
+                                 )
+                          )
+                   )
+  return(points)
+}
+```
+
+
+
+
+
+**CALCULATE POINTS FOR EACH TEAM**
+
+```{r}
+# Create data frames subsetted by each person
+baberSub <- rawTourney[rawTourney$Name %in% baberPlayers,]
+jaebSub <- rawTourney[rawTourney$Name %in% jaebPlayers,]
+benSub <- rawTourney[rawTourney$Name %in% benPlayers,]
+boozieSub <- rawTourney[rawTourney$Name %in% booziePlayers,]
+jackSub <- rawTourney[rawTourney$Name %in% jackPlayers,]
+jesseSub <- rawTourney[rawTourney$Name %in% jessePlayers,]
+ericSub <- rawTourney[rawTourney$Name %in% ericPlayers,]
+jonSub <- rawTourney[rawTourney$Name %in% jonPlayers,]
+```
+
+```{r}
+# Calculate placement points
+baberSub$placePoints <- placePoints(baberSub$Place)
+jaebSub$placePoints <- placePoints(jaebSub$Place)
+benSub$placePoints <- placePoints(benSub$Place)
+boozieSub$placePoints <- placePoints(boozieSub$Place)
+jackSub$placePoints <- placePoints(jackSub$Place)
+jesseSub$placePoints <- placePoints(jesseSub$Place)
+ericSub$placePoints <- placePoints(ericSub$Place)
+jonSub$placePoints <- placePoints(jonSub$Place)
+```
+
+```{r}
+# Calculate c1 points
+baberSub$c1Points <- c1Points(baberSub$Circle1XPutting)
+jaebSub$c1Points <- c1Points(jaebSub$Circle1XPutting)
+benSub$c1Points <- c1Points(benSub$Circle1XPutting)
+boozieSub$c1Points <- c1Points(boozieSub$Circle1XPutting)
+jackSub$c1Points <- c1Points(jackSub$Circle1XPutting)
+jesseSub$c1Points <- c1Points(jesseSub$Circle1XPutting)
+ericSub$c1Points <- c1Points(ericSub$Circle1XPutting)
+jonSub$c1Points <- c1Points(jonSub$Circle1XPutting)
+```
+
+```{r}
+# Calculate c2 points
+baberSub$c2Points <- c2Points(baberSub$Circle2Putting)
+jaebSub$c2Points <- c2Points(jaebSub$Circle2Putting)
+benSub$c2Points <- c2Points(benSub$Circle2Putting)
+boozieSub$c2Points <- c2Points(boozieSub$Circle2Putting)
+jackSub$c2Points <- c2Points(jackSub$Circle2Putting)
+jesseSub$c2Points <- c2Points(jesseSub$Circle2Putting)
+ericSub$c2Points <- c2Points(ericSub$Circle2Putting)
+jonSub$c2Points <- c2Points(jonSub$Circle2Putting)
+```
+
+```{r}
+# Calculate fairway points
+baberSub$fairwayPoints <- FairwayHit(baberSub$FairwaysHit)
+jaebSub$fairwayPoints <- FairwayHit(jaebSub$FairwaysHit)
+benSub$fairwayPoints <- FairwayHit(benSub$FairwaysHit)
+boozieSub$fairwayPoints <- FairwayHit(boozieSub$FairwaysHit)
+jackSub$fairwayPoints <- FairwayHit(jackSub$FairwaysHit)
+jesseSub$fairwayPoints <- FairwayHit(jesseSub$FairwaysHit)
+ericSub$fairwayPoints <- FairwayHit(ericSub$FairwaysHit)
+jonSub$fairwayPoints <- FairwayHit(jonSub$FairwaysHit)
+```
+
+```{r}
+# Calculate tee to green points
+baberSub$ttgPoints <- TeeToGreen(baberSub$TeeToGreen)
+jaebSub$ttgPoints <- TeeToGreen(jaebSub$TeeToGreen)
+benSub$ttgPoints <- TeeToGreen(benSub$TeeToGreen)
+boozieSub$ttgPoints <- TeeToGreen(boozieSub$TeeToGreen)
+jackSub$ttgPoints <- TeeToGreen(jackSub$TeeToGreen)
+jesseSub$ttgPoints <- TeeToGreen(jesseSub$TeeToGreen)
+ericSub$ttgPoints <- TeeToGreen(ericSub$TeeToGreen)
+jonSub$ttgPoints <- TeeToGreen(jonSub$TeeToGreen)
+```
+
+
+
+
+
+**SUM TOGETHER POINTS FOR EVERYBODY**
+
+```{r}
+baberFinal <- baberSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+jaebFinal <- jaebSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+benFinal <- benSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+boozieFinal <- boozieSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+jackFinal <- jackSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+jesseFinal <- jesseSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+jonFinal <- jonSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+
+ericFinal <- ericSub %>% rowwise() %>%
+  mutate(TotalPoints = sum(placePoints$col2, c1Points, c2Points, fairwayPoints, ttgPoints))
+```
